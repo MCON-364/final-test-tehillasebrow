@@ -1,6 +1,12 @@
 package edu.touro.las.mcon364.final_test;
 
+import java.util.ArrayList;
 import java.util.DoubleSummaryStatistics;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * TelemetryProcessor – concurrent sensor-data pipeline
@@ -32,7 +38,21 @@ import java.util.DoubleSummaryStatistics;
 public class TelemetryProcessor {
 
     // ── declare whatever fields you need ─────────────────────────────────────
+    private final BlockingQueue<TelemetryEvent> queue = new LinkedBlockingQueue<>();
 
+    // The worker threads, kept so stop() can wait for them to finish.
+    private final List<Thread> workers = new ArrayList<>();
+
+    // The shared on/off switch. volatile = every thread sees changes immediately.
+    private volatile boolean running = false;
+
+    // Thread-safe count of how many readings we've processed.
+    private final AtomicInteger totalProcessed = new AtomicInteger();
+
+    // Built-in accumulator: every time you call .accept(number) it updates the
+    // count, min, max, sum, and average for you. It is NOT thread-safe on its own,
+    // so below we wrap every use of it in `synchronized (stats)` (explained there).
+    private final DoubleSummaryStatistics stats = new DoubleSummaryStatistics();
     // ── public API ────────────────────────────────────────────────────────────
 
     /**
@@ -45,6 +65,9 @@ public class TelemetryProcessor {
      */
     public void submit(TelemetryEvent event) {
         //TODO - implement this method
+        if (running){
+            queue.offer(event);
+        }
     }
 
     /**
@@ -54,14 +77,56 @@ public class TelemetryProcessor {
      */
     public void start(int workerCount) {
         //TODO - implement this method
+        if (workerCount <= 0) {
+            throw new IllegalArgumentException("workerCount must be positive");
+        }
+        running = true;   // turn on BEFORE launching so workers don't exit instantly
+        for (int i = 0; i < workerCount; i++) {
+            Thread worker = new Thread(this::workerLoop);
+            workers.add(worker);
+            worker.start();
+        }
     }
 
+    private void workerLoop() {
+        // Keep working while running, OR while there is still leftover work to drain.
+        while (running || !queue.isEmpty()) {
+            try {
+                // Wait up to 100ms for a reading; null means "nothing arrived, loop again".
+                TelemetryEvent reading = queue.poll(100, TimeUnit.MILLISECONDS);
+                if (reading != null) {
+                    process(reading);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+
+    private void process(TelemetryEvent reading) {
+        totalProcessed.incrementAndGet();   // safe +1 across all workers
+
+        // synchronized (stats) = "only one thread at a time may run this block."
+        // DoubleSummaryStatistics.accept() is several internal steps; if two workers
+        // ran it at once the numbers could come out wrong. The lock forces them to
+        // take turns, keeping min/max/sum/count correct.
+        synchronized (stats) {
+            stats.accept(reading.metric());   // update count/min/max/sum/average with this value
+        }
+    }
     /**
      * Stop processing events.
      * @throws InterruptedException if the calling thread is interrupted while waiting
      */
     public void stop() throws InterruptedException {
         //TODO - implement this method
+        running = false;                 // tell workers to wind down
+        for (Thread worker : workers) {
+            worker.join();               // wait until each worker's loop fully ends
+        }
+        workers.clear();
     }
 
     /**
@@ -69,7 +134,7 @@ public class TelemetryProcessor {
      */
     public int getTotalProcessed() {
         //TODO - implement this method
-        return 0;
+        return totalProcessed.get();
     }
 
     /**
@@ -81,7 +146,12 @@ public class TelemetryProcessor {
      *
      */
     public DoubleSummaryStatistics getStats() {
-        //TODO - implement this method
-        return null;
+        DoubleSummaryStatistics snapshot = new DoubleSummaryStatistics();
+        // Lock so we read a consistent picture while workers might be updating it,
+        // then copy everything from the live stats into our fresh snapshot.
+        synchronized (stats) {
+            snapshot.combine(stats);     // combine = merge the live totals into the copy
+        }
+        return snapshot;                 // caller gets the copy; our internal stats stays private
     }
 }
