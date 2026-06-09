@@ -28,7 +28,7 @@ import java.util.stream.*;
 public class ProductReviewAnalyzer {
 
     //TODO - uncomment this field and initialize it in the constructor to store categories.
-    //private final List<String> categories;
+    private final List<String> categories;
 
     /**
      * Store the category tags that this analyzer will examine.
@@ -37,6 +37,10 @@ public class ProductReviewAnalyzer {
      */
     public ProductReviewAnalyzer(List<String> categories) {
       //TODO - implement this constructor
+        if (categories==null){
+            throw new IllegalArgumentException("categories cannot be null");
+        }
+        this.categories = categories;
     }
 
     /**
@@ -47,8 +51,9 @@ public class ProductReviewAnalyzer {
      */
     public Map<String, Long> buildCategoryFrequencyMap() {
         //TODO - implement this method
-        return null;
-    }
+
+        return categories.stream().sorted().collect(Collectors.groupingBy(String::toLowerCase, Collectors.counting()));
+    }//come back to this one
 
     /**
      * Returns the n most reviewed categories, highest count first.

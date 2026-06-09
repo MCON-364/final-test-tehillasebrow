@@ -30,9 +30,13 @@ public class ConcurrentAuctionTracker {
 
     //TODO - Initialize thread-safe sorted Set implementation to store bids in descending order by amount.
     //Uncomment line below and choose the appropriate concurrent collection to store BidEntry objects sorted by amount.
-    //private final Set<BidEntry> bids;
+    private final ConcurrentSkipListSet<BidEntry> bids;
     //TODO - Initialize a thread-safe counter to track total bid submissions and call it totalBids.
+     AtomicInteger totalBids = new AtomicInteger(0);
 
+    public ConcurrentAuctionTracker(ConcurrentSkipListSet<BidEntry> bids) {
+        this.bids = bids;
+    }
 
     /**
      * Adds a bid entry to the tracker thread-safely and increments the counter.
@@ -41,6 +45,10 @@ public class ConcurrentAuctionTracker {
      */
     public void submitBid(BidEntry entry) {
         //TODO - implement this method
+
+            bids.add(entry);
+            totalBids.incrementAndGet();
+
     }
 
     /**
@@ -51,7 +59,8 @@ public class ConcurrentAuctionTracker {
      */
     public List<BidEntry> getTopN(int n) {
         //TODO - implement this method
-        return null;
+
+        return bids.stream().limit(n).collect(Collectors.toList());
     }
 
     /**
@@ -59,7 +68,7 @@ public class ConcurrentAuctionTracker {
      */
     public int getTotalBids() {
         //TODO - implement this method
-        return 0;
+        return totalBids.get();
     }
 
     /**
