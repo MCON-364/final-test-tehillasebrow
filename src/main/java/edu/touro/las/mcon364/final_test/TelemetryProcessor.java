@@ -146,9 +146,12 @@ public class TelemetryProcessor {
      *
      */
     public DoubleSummaryStatistics getStats() {
-        //TODO - implement this method
-        return new DoubleSummaryStatistics(
-
-        );
+        DoubleSummaryStatistics snapshot = new DoubleSummaryStatistics();
+        // Lock so we read a consistent picture while workers might be updating it,
+        // then copy everything from the live stats into our fresh snapshot.
+        synchronized (stats) {
+            snapshot.combine(stats);     // combine = merge the live totals into the copy
+        }
+        return snapshot;                 // caller gets the copy; our internal stats stays private
     }
 }
