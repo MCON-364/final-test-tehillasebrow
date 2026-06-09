@@ -35,11 +35,11 @@ public class IncidentAnalyzer {
      * The constructor should make a defensive copy of the list to prevent
      * external modification of the internal state of this class. If the input list is null, throw an NullPointerException.
      */
-    public IncidentAnalyzer(List<SupportTicket> incidents, List<SupportTicket> incidents1) {
+    public IncidentAnalyzer(List<SupportTicket> incidents) {
        //TODO - implement this constructor
         if(incidents!=null){
-        this.incidents = incidents;
-        incidents1=incidents;}
+        this.incidents = List.copyOf(incidents);
+        }
         else
             throw new NullPointerException();
     }

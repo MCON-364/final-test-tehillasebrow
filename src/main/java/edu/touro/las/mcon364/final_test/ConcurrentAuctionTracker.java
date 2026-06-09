@@ -30,13 +30,11 @@ public class ConcurrentAuctionTracker {
 
     //TODO - Initialize thread-safe sorted Set implementation to store bids in descending order by amount.
     //Uncomment line below and choose the appropriate concurrent collection to store BidEntry objects sorted by amount.
-    private final ConcurrentSkipListSet<BidEntry> bids;
+    private final ConcurrentSkipListSet<BidEntry> bids= new ConcurrentSkipListSet<>();;
     //TODO - Initialize a thread-safe counter to track total bid submissions and call it totalBids.
      AtomicInteger totalBids = new AtomicInteger(0);
 
-    public ConcurrentAuctionTracker(ConcurrentSkipListSet<BidEntry> bids) {
-        this.bids = bids;
-    }
+
 
     /**
      * Adds a bid entry to the tracker thread-safely and increments the counter.
@@ -60,7 +58,7 @@ public class ConcurrentAuctionTracker {
     public List<BidEntry> getTopN(int n) {
         //TODO - implement this method
 
-        return bids.stream().limit(n).collect(Collectors.toList());
+        return bids.stream().limit(n).toList();
     }
 
     /**
@@ -83,6 +81,18 @@ public class ConcurrentAuctionTracker {
     public void runSimulation(List<String> bidders, int bidsEach)
             throws InterruptedException {
         //TODO - implement this method
+        ExecutorService pool = Executors.newFixedThreadPool(bidders.size());
+        Random randomNumber = new Random();
+        for (String player : bidders) {
+            pool.execute(() -> {
+                for (int i = 0; i < bidsEach; i++) {
+                    int score = randomNumber.nextInt(1000);
+                    submitBid(new BidEntry(player, score, System.currentTimeMillis()));
+                }
+            });
+        }
+        pool.shutdown();
+        pool.awaitTermination(1, TimeUnit.MINUTES);
     }
 }
 

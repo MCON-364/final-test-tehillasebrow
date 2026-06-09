@@ -40,7 +40,7 @@ public class ProductReviewAnalyzer {
         if (categories==null){
             throw new IllegalArgumentException("categories cannot be null");
         }
-        this.categories = categories;
+        this.categories = List.copyOf(categories);
     }
 
     /**
@@ -49,11 +49,16 @@ public class ProductReviewAnalyzer {
      *
      * @return sorted frequency map
      */
-    public Map<String, Long> buildCategoryFrequencyMap() {
+    public TreeMap<String, Long> buildCategoryFrequencyMap() {
         //TODO - implement this method
 
-        return categories.stream().sorted().collect(Collectors.groupingBy(String::toLowerCase, Collectors.counting()));
-    }//come back to this one
+        return categories.stream()
+                .collect(Collectors.groupingBy(
+                        w -> w,
+                        TreeMap::new,
+                        Collectors.counting()
+                ));
+    }
 
     /**
      * Returns the n most reviewed categories, highest count first.
@@ -63,7 +68,12 @@ public class ProductReviewAnalyzer {
      */
     public List<String> getTopNCategories(int n) {
         //TODO - implement this method
-        return null;
+        return buildCategoryFrequencyMap().entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .limit(n)
+                .map(Map.Entry::getKey)
+                .toList();
     }
 
     /**
@@ -74,7 +84,11 @@ public class ProductReviewAnalyzer {
      */
     public List<String> getCategoriesStartingWith(char prefix) {
         //TODO - implement this method
-        return null;
+        return buildCategoryFrequencyMap().keySet()
+                .stream()
+                .filter(s -> s.charAt(0) == prefix)
+                .sorted()
+                .toList();
     }
 
     /**
@@ -86,6 +100,10 @@ public class ProductReviewAnalyzer {
      */
     public Optional<String> getMostReviewedInRange(String from, String to) {
         //TODO - implement this method
-        return Optional.empty();
+        return buildCategoryFrequencyMap().subMap(from, true, to, true)
+                .entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey);
     }
 }
